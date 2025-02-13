@@ -11,12 +11,13 @@ import yt_dlp
 import youtube_dl
 from discord import FFmpegPCMAudio
 import subprocess
+import re
 
 load_dotenv()
 
 TOKEN = os.getenv("DISCORD_TOKEN")
 PREFIX = "!"
-VERSION = "5.11.0"
+VERSION = "5.11.1"
 #bot-権限
 intents = discord.Intents.all()
 bot = commands.Bot(command_prefix=PREFIX, intents=intents)
@@ -58,6 +59,7 @@ async def volume(ctx, level: float):
     if ctx.voice_client is None:
         await ctx.send("ボイスチャンネルに接続していません！")
         return
+
 
     if level < 0 or level > 2.0:
         await ctx.send("音量は 0.0 〜 2.0 の間で指定してください！")
@@ -127,6 +129,24 @@ async def role(ctx,min_value: int, max_value: int):
     
     random_number = random.randint(min_value,max_value)
     await ctx.send(f"🎲 結果は: **{random_number}** でした！")
+
+#message - remove_emojis
+def remove_emojis(text):
+    emoji_patern = re.compile(
+        "[\U0001F600-\U0001F64F"  # 顔文字
+        "\U0001F300-\U0001F5FF"  # 記号 & 絵文字
+        "\U0001F680-\U0001F6FF"  # 乗り物 & 地図記号
+        "\U0001F700-\U0001F77F"  # 追加の記号
+        "\U0001F780-\U0001F7FF"  # 幾何学模様
+        "\U0001F800-\U0001F8FF"  # 装飾記号
+        "\U0001F900-\U0001F9FF"  # 装飾文字
+        "\U0001FA00-\U0001FA6F"  # 道具・アイコン
+        "\U0001FA70-\U0001FAFF"  # 追加の絵文字
+        "\U00002702-\U000027B0"  # その他の絵文字
+        "\U000024C2-\U0001F251]+",  # その他の記号
+        flags=re.UNICODE
+    )
+    return emoji_patern.sub('',text)
 
 #message
 @bot.event
