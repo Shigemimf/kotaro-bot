@@ -15,7 +15,7 @@ load_dotenv()
 
 TOKEN = os.getenv("DISCORD_TOKEN")
 PREFIX = "!"
-VERSION = "5.10.5"
+VERSION = "5.10.6"
 #bot-権限
 intents = discord.Intents.all()
 bot = commands.Bot(command_prefix=PREFIX, intents=intents)
@@ -69,9 +69,9 @@ async def play_next(ctx):
         audio_url, title = get_audio_info(url)
         ffmpeg_options = {
         'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
-        'options': '-vn -filter:a "volume=0.3"'  # 音量を50%に調整
+        'options': '-vn -filter:a "volume=0.05"'  # 音量を50%に調整
     }
-        
+
         def after_play(error):
             coro = play_next(ctx)
             fut = bot.loop.create_task(coro)
