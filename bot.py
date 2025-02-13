@@ -17,7 +17,7 @@ load_dotenv()
 
 TOKEN = os.getenv("DISCORD_TOKEN")
 PREFIX = "!"
-VERSION = "5.11.1"
+VERSION = "5.11.2"
 #bot-権限
 intents = discord.Intents.all()
 bot = commands.Bot(command_prefix=PREFIX, intents=intents)
@@ -146,7 +146,11 @@ def remove_emojis(text):
         "\U000024C2-\U0001F251]+",  # その他の記号
         flags=re.UNICODE
     )
-    return emoji_patern.sub('',text)
+    text = emoji_patern.sub('',text)
+
+    text = re.sub(r"<a?:\w+:\d+>","",text)
+
+    return text
 
 #message
 @bot.event
