@@ -16,7 +16,7 @@ load_dotenv()
 
 TOKEN = os.getenv("DISCORD_TOKEN")
 PREFIX = "!"
-VERSION = "5.10.9"
+VERSION = "5.11.0"
 #bot-権限
 intents = discord.Intents.all()
 bot = commands.Bot(command_prefix=PREFIX, intents=intents)
@@ -25,13 +25,7 @@ bot = commands.Bot(command_prefix=PREFIX, intents=intents)
 read_channels = {}
 
 #path
-FFMPEG_PATH = os.getenv("FFMPEG_PATH")
-
-
-#path-check
-if not os.path.exists(FFMPEG_PATH):
-    print(f"error: ffmpegが見つかりません。{FFMPEG_PATH}を確認してください")
-    exit(1)
+FFMPEG_PATH = os.getenv("FFMPEG_PATH") #path check
 
 #bot-start
 start_time = time.time()
@@ -42,6 +36,7 @@ async def on_ready():
     await bot.change_presence(status=discord.Status.online, activity=activity)
     print(f"kotaro online : {bot.user} (ver:{VERSION})")
     bot.remove_command("help") #既存のhelpを削除(新たに導入するhelpのため)
+
 FFMPEG_OPTIONS = {
     'options': '-vn -reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
     'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5'
@@ -55,89 +50,6 @@ async def on_voice_state_update(member, before, after):
             if vc.is_connected():
                 vc.stop()
             await asyncio.sleep(1)  # 切断までの猶予
-            await vc.disconnect(force=True)  # 強制的に切断
-
-#音楽再生q
-queue = []
-music_queue = []
-
-#get audio info
-def get_audio_info(video_url):
-    ydl_opts = {
-        'format': 'bestaudio/best',
-        'noplaylist': True,
-        'quiet': True,
-        'extract_flat': False,
-        'timeout': 10  # 10秒でタイムアウト
-    }
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        try:
-            info = ydl.extract_info(video_url, download=False)
-            audio_url = info['url']
-            title = info.get('title', 'Unknown Title')
-            print(f"DEBUG: Video URL: {video_url}, Audio URL: {audio_url}, Title: {title}") 
-            return audio_url, title
-        except Exception as e:
-            print(f"ERROR: get_audio_infoでエラーが発生: {e}")  
-            return None, None 
-        
-async def play_next(ctx):
-    if queue:  
-        url = queue.pop(0)  
-        print(f"DEBUG: キューから取り出し: {url}, キューの残り: {queue}")  
-        audio_url, title = get_audio_info(url)
-
-        if audio_url is None:
-            await ctx.send("⚠️ 曲情報の取得に失敗しました。次の曲を再生します。")
-            await play_next(ctx) 
-            return
-
-        def after_play(error):
-            if error:
-                print(f"ERROR: 再生中にエラーが発生: {error}")  
-            coro = play_next(ctx)
-            fut = bot.loop.create_task(coro)
-            fut.add_done_callback(lambda f: f.exception() if f.exception() else None)
-
-        try:
-            ctx.voice_client.play(discord.FFmpegPCMAudio(audio_url, executable=FFMPEG_PATH, options=FFMPEG_OPTIONS), after=after_play)
-            await ctx.send(f"🎵 再生中: {title}")  
-        except Exception as e:
-            print(f"ERROR: 再生処理中にエラーが発生: {e}")  
-            await ctx.send(f"⚠️ 再生中にエラーが発生しました: {e}")
-            await play_next(ctx)  
-    else:
-        await ctx.send("🎵 再生キューが空です。")
-
-@bot.command()
-async def play(ctx, url):
-    if not ctx.voice_client:
-        await ctx.author.voice.channel.connect()
-    
-    queue.append(url)  
-    print(f"DEBUG: キューに追加: {url}, 現在のキュー: {queue}")  
-    if not ctx.voice_client.is_playing():
-        await play_next(ctx)  
-
-@bot.command()
-async def skip(ctx):
-    if ctx.voice_client.is_playing():
-        ctx.voice_client.stop()  # 現在の曲をスキップ
-        await play_next(ctx)
-
-@bot.command()
-async def queue_list(ctx):
-    if queue:
-        await ctx.send("📜 再生キュー:\n" + "\n".join(queue))
-    else:
-        await ctx.send("🎵 再生キューが空です。")
-
-#再接続
-@bot.event
-async def on_voice_state_update(member, before, after):
-    if member == bot.user and after.channel is None:  # ボットが切断された場合
-        print("ボットがボイスチャンネルから切断されました。再接続します...")
-        for vc in bot.voice_clients:
             await vc.disconnect(force=True)  # 強制的に切断
 
 #音量設定
@@ -156,26 +68,6 @@ async def volume(ctx, level: float):
 
     ctx.voice_client.source.volume = level  # 音量を変更するだけ
     await ctx.send(f"🔊 音量を {level * 100:.0f}% に変更しました！")
-
-#一時停止
-@bot.command()
-async def pause(ctx):
-    if ctx.voice_client.is_playing():
-        ctx.voice_client.pause()
-        await ctx.send("⏸️ 音楽を一時停止しました。")
-
-#再開
-@bot.command()
-async def resume(ctx):
-    if ctx.voice_client.is_paused():
-        ctx.voice_client.resume()
-        await ctx.send("▶️ 音楽を再開しました。")
-
-#停止
-@bot.command()
-async def stop(ctx):
-    ctx.voice_client.stop()
-    await ctx.send("⏹️ 音楽を停止しました。")
 
 # VC切断
 @bot.command()
@@ -274,10 +166,6 @@ async def on_message(message):
 @bot.command(name="help1", guild_only=True)
 async def custum_help(ctx):
     embed = discord.Embed(title="📖コマンド一覧", color=discord.Color.blue())
-    embed.add_field(name= "🎵 ~~!play [link]~~", value="linkを再生します。音量に注意してください", inline=False)
-    embed.add_field(name= "⏸️ ~~!pause~~", value="再生されている音楽を一時停止します", inline=False)
-    embed.add_field(name= "▶️ ~~!resume~~", value="停止している音楽を再開します", inline=False)
-    embed.add_field(name= "⏹️ ~~!stop~~", value="音楽を停止します", inline=False)
     embed.add_field(name= "📤 !leave", value="botを切断します", inline=False)
     embed.add_field(name= "📢 !setread", value="コマンドを入力したチャンネルを読み上げ対象に設定", inline=False)
     embed.add_field(name= "📢 !unsetread", value="現在設定されている読み上げチャンネルの設定を削除します", inline=False)
@@ -391,7 +279,7 @@ async def status(ctx):
 @bot.command(guild_only=True)
 @commands.has_permissions(administrator=True)
 async def shutdown(ctx):
-    await ctx.send("⚠️ Botをシャットダウンします。管理人に報告してください。`error:200x`")
+    await ctx.send("⚠️ Botをシャットダウンします。管理人に報告してください。")
     await bot.close()
 
 #error_handling
