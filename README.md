@@ -1,0 +1,2 @@
+# Kotaro
+ kotaro-discord bot
