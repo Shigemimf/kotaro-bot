@@ -10,12 +10,13 @@ from dotenv import load_dotenv
 import yt_dlp
 import youtube_dl
 from discord import FFmpegPCMAudio
+import subprocess
 
 load_dotenv()
 
 TOKEN = os.getenv("DISCORD_TOKEN")
 PREFIX = "!"
-VERSION = "5.10.8"
+VERSION = "5.10.9"
 #bot-権限
 intents = discord.Intents.all()
 bot = commands.Bot(command_prefix=PREFIX, intents=intents)
@@ -41,10 +42,20 @@ async def on_ready():
     await bot.change_presence(status=discord.Status.online, activity=activity)
     print(f"kotaro online : {bot.user} (ver:{VERSION})")
     bot.remove_command("help") #既存のhelpを削除(新たに導入するhelpのため)
-
 FFMPEG_OPTIONS = {
-    'options': '-vn -reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5'
+    'options': '-vn -reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
+    'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5'
 }
+
+@bot.event
+async def on_voice_state_update(member, before, after):
+    if member == bot.user and after.channel is None:  # ボットが切断された場合
+        print("ボットがボイスチャンネルから切断されました。再接続します...")
+        for vc in bot.voice_clients:
+            if vc.is_connected():
+                vc.stop()
+            await asyncio.sleep(1)  # 切断までの猶予
+            await vc.disconnect(force=True)  # 強制的に切断
 
 #音楽再生q
 queue = []
@@ -60,25 +71,41 @@ def get_audio_info(video_url):
         'timeout': 10  # 10秒でタイムアウト
     }
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        info = ydl.extract_info(video_url, download=False)
-        return info['url'], info.get('title', 'Unknown Title')
-
+        try:
+            info = ydl.extract_info(video_url, download=False)
+            audio_url = info['url']
+            title = info.get('title', 'Unknown Title')
+            print(f"DEBUG: Video URL: {video_url}, Audio URL: {audio_url}, Title: {title}") 
+            return audio_url, title
+        except Exception as e:
+            print(f"ERROR: get_audio_infoでエラーが発生: {e}")  
+            return None, None 
+        
 async def play_next(ctx):
-    if queue:  # キューに曲がある場合
-        url = queue.pop(0)  # 先頭の曲を取得
+    if queue:  
+        url = queue.pop(0)  
+        print(f"DEBUG: キューから取り出し: {url}, キューの残り: {queue}")  
         audio_url, title = get_audio_info(url)
-        ffmpeg_options = {
-        'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
-        'options': '-vn -filter:a "volume=0.05"'  # 音量を50%に調整
-    }
+
+        if audio_url is None:
+            await ctx.send("⚠️ 曲情報の取得に失敗しました。次の曲を再生します。")
+            await play_next(ctx) 
+            return
 
         def after_play(error):
+            if error:
+                print(f"ERROR: 再生中にエラーが発生: {error}")  
             coro = play_next(ctx)
             fut = bot.loop.create_task(coro)
             fut.add_done_callback(lambda f: f.exception() if f.exception() else None)
 
-        ctx.voice_client.play(discord.FFmpegPCMAudio(audio_url, executable="ffmpeg"), after=after_play)
-        await ctx.send(f"🎵 再生中: {title}")  # 曲名を表示
+        try:
+            ctx.voice_client.play(discord.FFmpegPCMAudio(audio_url, executable=FFMPEG_PATH, options=FFMPEG_OPTIONS), after=after_play)
+            await ctx.send(f"🎵 再生中: {title}")  
+        except Exception as e:
+            print(f"ERROR: 再生処理中にエラーが発生: {e}")  
+            await ctx.send(f"⚠️ 再生中にエラーが発生しました: {e}")
+            await play_next(ctx)  
     else:
         await ctx.send("🎵 再生キューが空です。")
 
@@ -87,9 +114,10 @@ async def play(ctx, url):
     if not ctx.voice_client:
         await ctx.author.voice.channel.connect()
     
-    queue.append(url)  # キューに追加
+    queue.append(url)  
+    print(f"DEBUG: キューに追加: {url}, 現在のキュー: {queue}")  
     if not ctx.voice_client.is_playing():
-        await play_next(ctx)  # すぐに再生開始
+        await play_next(ctx)  
 
 @bot.command()
 async def skip(ctx):
@@ -369,12 +397,13 @@ async def shutdown(ctx):
 #error_handling
 @bot.event
 async def on_command_error(ctx, error):
+    print(f"ERROR: コマンド実行中にエラーが発生: {error}")  # エラーログ
     if isinstance(error, commands.MissingPermissions):
         await ctx.send("このコマンドを実行する権限がありません")
     elif isinstance(error, commands.MissingRequiredArgument):
         await ctx.send("必要な引数が足りません")
     else:
-        raise error
+        await ctx.send(f"⚠️ エラーが発生しました: {error}") #エラー内容を表示
     
 #run
 bot.run(TOKEN)
