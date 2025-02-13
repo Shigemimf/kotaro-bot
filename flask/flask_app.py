@@ -2,12 +2,13 @@ from flask import Flask, render_template, request, redirect, url_for
 import threading
 import discord
 from discord.ext import commands
+import os
 
 #app
 app = Flask(__name__)
 
 #discord bot
-TOKEN = "MTMzNjUxNTYzMDI3ODM4MTYxNA.G8G1Z-.RnO5sEjvgD0d-GuVP44ZAPc6ac5YuvqT8rKpCk"
+TOKEN = os.getenv("DISCORD_TOKEN")
 PREFIX = "!"
 
 intents = discord.Intents.all()

@@ -7,7 +7,7 @@ import os
 app = Flask(__name__)
 
 #Discordとflaskの結合
-TOKEN = "MTMzNjUxNTYzMDI3ODM4MTYxNA.G8G1Z-.RnO5sEjvgD0d-GuVP44ZAPc6ac5YuvqT8rKpCk"
+TOKEN = os.getenv("DISCORD_TOKEN")
 bot = commands.Bot(command_prefix="!",intents=discord.Intents.all())
 
 @app.route("/")
