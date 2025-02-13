@@ -15,7 +15,7 @@ load_dotenv()
 
 TOKEN = os.getenv("DISCORD_TOKEN")
 PREFIX = "!"
-VERSION = "5.10.7"
+VERSION = "5.10.8"
 #bot-権限
 intents = discord.Intents.all()
 bot = commands.Bot(command_prefix=PREFIX, intents=intents)
@@ -123,8 +123,10 @@ async def volume(ctx, level: float):
         await ctx.send("音量は 0.0 〜 2.0 の間で指定してください！")
         return
 
-    ctx.voice_client.source = discord.PCMVolumeTransformer(ctx.voice_client.source)
-    ctx.voice_client.source.volume = level
+    if not isinstance(ctx.voice_client.source, discord.PCMVolumeTransformer):
+        ctx.voice_client.source = discord.PCMVolumeTransformer(ctx.voice_client.source)
+
+    ctx.voice_client.source.volume = level  # 音量を変更するだけ
     await ctx.send(f"🔊 音量を {level * 100:.0f}% に変更しました！")
 
 #一時停止
