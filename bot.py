@@ -297,16 +297,3 @@ async def on_command_error(ctx, error):
 bot.run(TOKEN)
 
 
-#version
-#1.0.0 = 簡易的なコーディングが完了初期起動状態
-#1.1.0 = !kotaroコマンドの実装(初期はおはようのみ)
-#1.1.1 = !kotaro含むすべてのコマンドの権限設定の変更(エラーが発生したため)
-#1.2.0 = !roleコマンドを!addroleと!removeroleに変更し、2つのコーディングが完了
-#2.0.0 = nowコマンドの実装
-#2.0.1 = flaskの修正
-#2.2.0 = vc
-#2.3.0 = voiceの仕様変更(読み上げるチャンネルを設定してその値を自動取得するように変更)
-#2.3.1 = setreadがserreadになってる事象を修正
-#2.4.0 = ffmpegのインストール
-#2.4.1 = ffmpegのパス指定
-#2.4.2 = ffmpegのパスerrorの解決
