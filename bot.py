@@ -15,7 +15,7 @@ load_dotenv()
 
 TOKEN = os.getenv("DISCORD_TOKEN")
 PREFIX = "!"
-VERSION = "5.10.6"
+VERSION = "5.10.7"
 #bot-権限
 intents = discord.Intents.all()
 bot = commands.Bot(command_prefix=PREFIX, intents=intents)
@@ -111,6 +111,21 @@ async def on_voice_state_update(member, before, after):
         print("ボットがボイスチャンネルから切断されました。再接続します...")
         for vc in bot.voice_clients:
             await vc.disconnect(force=True)  # 強制的に切断
+
+#音量設定
+@bot.command()
+async def volume(ctx, level: float):
+    if ctx.voice_client is None:
+        await ctx.send("ボイスチャンネルに接続していません！")
+        return
+
+    if level < 0 or level > 2.0:
+        await ctx.send("音量は 0.0 〜 2.0 の間で指定してください！")
+        return
+
+    ctx.voice_client.source = discord.PCMVolumeTransformer(ctx.voice_client.source)
+    ctx.voice_client.source.volume = level
+    await ctx.send(f"🔊 音量を {level * 100:.0f}% に変更しました！")
 
 #一時停止
 @bot.command()
