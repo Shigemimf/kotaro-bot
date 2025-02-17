@@ -17,7 +17,7 @@ load_dotenv()
 
 TOKEN = os.getenv("DISCORD_TOKEN")
 PREFIX = "!"
-VERSION = "5.11.2"
+VERSION = "5.11.6x"
 #bot-権限
 intents = discord.Intents.all()
 bot = commands.Bot(command_prefix=PREFIX, intents=intents)
@@ -132,7 +132,7 @@ async def role(ctx,min_value: int, max_value: int):
 
 #message - remove_emojis
 def remove_emojis(text):
-    emoji_patern = re.compile(
+    emoji_pattern = re.compile(
         "[\U0001F600-\U0001F64F"  # 顔文字
         "\U0001F300-\U0001F5FF"  # 記号 & 絵文字
         "\U0001F680-\U0001F6FF"  # 乗り物 & 地図記号
@@ -143,11 +143,10 @@ def remove_emojis(text):
         "\U0001FA00-\U0001FA6F"  # 道具・アイコン
         "\U0001FA70-\U0001FAFF"  # 追加の絵文字
         "\U00002702-\U000027B0"  # その他の絵文字
-        "\U000024C2-\U0001F251]+",  # その他の記号
-        flags=re.UNICODE
+        "\U000024C2-\U0001F251]+"  # その他の記号
+        , flags=re.UNICODE
     )
-    text = emoji_patern.sub('',text)
-
+    text = emoji_pattern.sub('', text)
     text = re.sub(r"<a?:\w+:\d+>","",text)
 
     return text
@@ -170,20 +169,23 @@ async def on_message(message):
                 await voice_channel.connect()
         
         if message.guild.voice_client:
-            tts = gTTS(text=message.content, lang="ja")
-            tts.save("speech.mp3")
+            clean_text = remove_emojis(message.content)  # 絵文字削除
+            print(f"元のメッセージ: {message.content}")  # デバッグ出力
+            print(f"絵文字削除後のメッセージ: {clean_text}")  # デバッグ出力
 
-        if message.guild.voice_client is None:
-            if message.author.voice:
-                vc = await message.author.voice.channel.connect()
+            if clean_text.strip():  # 空白だけならスキップ
+                tts = gTTS(text=clean_text, lang="ja")  # ✅ 修正: 絵文字削除後のテキストを使用
+                tts.save("speech.mp3")
+
+                if not os.path.exists("speech.mp3"):
+                    print("⚠️ speech.mp3 が作成されていません！")
+                    return
+
+                vc = message.channel.guild.voice_client
+                vc.play(discord.FFmpegPCMAudio("speech.mp3", executable=FFMPEG_PATH))
             else:
-                await message.channel.send("⚠️ ボイスチャンネルに参加してからメッセージを送信してください!")
-                return
-        else:
-            vc = message.channel.guild.voice_client
+                print("⚠️ メッセージが空だったためスキップされました。")
 
-        vc.play(discord.FFmpegPCMAudio("speech.mp3", executable=FFMPEG_PATH))
-    
     await bot.process_commands(message)
 
 #!help
