@@ -10,14 +10,16 @@ from dotenv import load_dotenv
 import yt_dlp
 import youtube_dl
 from discord import FFmpegPCMAudio
-import subprocess
 import re
+from osu_bot import fetch_osu_result, fetch_user_info
+import requests
 
 load_dotenv()
 
 TOKEN = os.getenv("DISCORD_TOKEN")
 PREFIX = "!"
-VERSION = "5.11.6x"
+VERSION = "6.1.20β"
+
 #bot-権限
 intents = discord.Intents.all()
 bot = commands.Bot(command_prefix=PREFIX, intents=intents)
@@ -52,6 +54,31 @@ async def on_voice_state_update(member, before, after):
                 vc.stop()
             await asyncio.sleep(1)  # 切断までの猶予
             await vc.disconnect(force=True)  # 強制的に切断
+
+#osu!-res
+@bot.command()
+async def osu(ctx, username: str):
+    result, file = await fetch_osu_result(username)
+    if result:
+        if file:
+            await ctx.send(embed=result, file=file)
+        else:
+            await ctx.send(embed=result)
+    else:
+        await ctx.send('**直近のプレイが見つかりませんでした🔎**')
+
+#osu!-inf
+@bot.command()
+async def osuinfo(ctx, username: str):
+    total_pp, global_rank = await fetch_user_info(username)
+    if total_pp is not None and global_rank is not None:
+        embed = discord.Embed(title=f"osu! userinfo - {username}", color=0x0099ff)
+        embed.add_field(name= 'Totalpp', value=str(total_pp), inline=True)
+        embed.add_field(name= 'Global Rank', value=str(global_rank), inline=True)
+
+        await ctx.send(embed=embed)
+    else:
+        await ctx.send('**ユーザー情報が見つかりませんでした**')
 
 #音量設定
 @bot.command()
@@ -273,6 +300,11 @@ async def removerole(ctx, member: discord.Member, role_name: str):
 @bot.command(guild_only=True)
 async def kotaro(ctx):
     await ctx.send("おはよう! \n 詳しいバージョン情報はこちらから")
+
+#okaeri
+@bot.command(guild_only=True)
+async def okaeri(ctx):
+    await ctx.send(f"**ただいま！戻ってきたよ！** \n 現在のバージョンは **`{VERSION}`**だよ！")
 
 #bot-now
 @bot.command(guild_only=True)
