@@ -1,24 +1,27 @@
 import discord
 from discord.ext import commands
-import os 
+import os
 import asyncio
 import random
 import psutil
 import time
 from gtts import gTTS
+import requests
 from dotenv import load_dotenv
 import yt_dlp
 import youtube_dl
 from discord import FFmpegPCMAudio
 import re
 from osu_bot import fetch_osu_result, fetch_user_info
-import requests
+
 
 load_dotenv()
 
 TOKEN = os.getenv("DISCORD_TOKEN")
 PREFIX = "!"
 VERSION = "6.1.20β"
+RIOT_GAMES_API_KEY = os.getenv("RIOT_GAMES_API_KEY")
+API_URL = 'https://public-api.tracker.gg/v2/valorant/standard/profile/riot/{username}%23{tagline}'
 
 #bot-権限
 intents = discord.Intents.all()
@@ -44,6 +47,63 @@ FFMPEG_OPTIONS = {
     'options': '-vn -reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
     'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5'
 }
+
+#PUUID
+def get_puuid(username: str, tagline: str):
+    url = f'https://api.riotgames.com/val/matches/by-puuid/{username}%23{tagline}/ids'
+    headers = {
+        'X-Riot-Token' : RIOT_GAMES_API_KEY
+    }
+    response = requests.get(url, headers=headers)
+
+    if response.status_code == 200:
+        data = response.json()
+        return data['puuid']
+    else:
+        return None
+
+#Val
+@bot.command()
+async def valorant(ctx, username: str, tagline: str):
+    puuid = get_puuid(username, tagline)
+    if not puuid:
+        await ctx.send("プレイヤーのPUUIDの取得に失敗しました。ユーザーネームとタグラインを確認してください。")
+        return
+
+    url = API_URL.format(puuid=puuid)
+    headers = {
+        'X-Riot-Token' : RIOT_GAMES_API_KEY
+    }
+    response = requests.get(url, headers=headers)
+
+    if response.status_code == 200:
+        match_ids = response.json()
+        if not match_ids:
+            await ctx.send("試合結果が見つかりませんでした")
+            return
+
+        #val match
+        match_id = match_ids[0]
+        match_url = f'https://api.riotgames.com/val/matches/{match_id}'
+        match_response = requests.get(match_url, headers=headers)
+
+        if match_response.status_code == 200:
+            match_data = match_response.json()
+            result = f"最新の試合結果:\nマップ: {match_data['map']}\n"
+            result += f"結果: {'勝利' if match_data['teams']['team1']['won'] else '敗北'}\n"
+            result += f"キル: {match_data['players'][0]['stats']['kills']}\n"
+            result += f"デス: {match_data['players'][0]['stats']['deaths']}\n"
+            result += f"アシスト: {match_data['players'][0]['stats']['assists']}\n"
+        else:
+            result = "試合データの取得に失敗しました。"
+        else:
+        result = (
+            f"データの取得に失敗しました。ユーザーネームとタグラインを確認してください。\n"
+            f"ステータスコード: {response.status_code}\n"
+            f"レスポンス: {response.json()}"
+        )
+
+    await ctx.send(result)
 
 @bot.event
 async def on_voice_state_update(member, before, after):
